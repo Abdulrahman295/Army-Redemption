@@ -1,0 +1,8 @@
+{
+  "name": "Army Redemption - Tactical Service Telemetry",
+  "description": "Tactical military countdown and service integrity heatmap tracking days until freedom, terminal leave, and duty completion.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
