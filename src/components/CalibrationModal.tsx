@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ServiceConfig } from '../types/telemetry';
 import { DEFAULT_CONFIGS } from '../utils/telemetryCalculator';
-import { X, Sliders, Calendar, RotateCcw, Check } from 'lucide-react';
+import { X, Sliders, RotateCcw } from 'lucide-react';
 import { tacticalAudio } from '../utils/audio';
 
 interface CalibrationModalProps {
@@ -18,18 +18,48 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
   onSave,
 }) => {
   const [formData, setFormData] = useState<ServiceConfig>({ ...config });
-  const [selectedPresetId, setSelectedPresetId] = useState<string>(config.id);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Escape to close, trap Tab focus, restore focus to the trigger on close
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const focusables = () =>
+      Array.from(
+        dialog?.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])') ?? []
+      ).filter((el) => !el.hasAttribute('disabled'));
+    focusables()[0]?.focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const handleSelectPreset = (preset: ServiceConfig) => {
-    setSelectedPresetId(preset.id);
-    setFormData({
-      ...preset,
-      terminalLeaveDays: formData.terminalLeaveDays || preset.terminalLeaveDays,
-    });
-    tacticalAudio.playHover();
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,21 +72,22 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
     tacticalAudio.playConfirm();
     const def = DEFAULT_CONFIGS[0];
     setFormData({ ...def });
-    setSelectedPresetId(def.id);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
       <div 
-        className="bg-[#12181f] border border-[#1e2630] rounded-lg max-w-lg w-full p-6 shadow-[0_0_30px_rgba(0,0,0,0.8)] relative text-[#dde3ed]"
+        className="bg-surface border border-line rounded-lg max-w-lg w-full p-6 relative text-fg"
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="calibration-title"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#1e2630]">
+        <div className="flex items-center justify-between pb-4 border-b border-line">
           <div className="flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-[#f59e0b]" />
-            <h3 className="text-lg font-space font-bold tracking-wide text-white uppercase">
+            <Sliders className="w-5 h-5 text-accent" />
+            <h3 id="calibration-title" className="text-lg font-display font-bold tracking-wide text-white uppercase">
               CALIBRATE SERVICE DATES
             </h3>
           </div>
@@ -65,7 +96,7 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
               tacticalAudio.playHover();
               onClose();
             }}
-            className="text-[#94a3b8] hover:text-white p-1 rounded hover:bg-[#1a2027] transition-colors"
+            className="text-muted hover:text-white p-1 rounded hover:bg-raised transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -74,122 +105,43 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-5">
-          {/* Preset Buttons */}
-          <div className="space-y-2">
-            <label className="text-xs font-mono-hud text-[#94a3b8] uppercase tracking-wider block">
-              OPERATIONAL PRESETS
-            </label>
-            <div className="grid grid-cols-1 gap-2">
-              {DEFAULT_CONFIGS.map((preset) => {
-                const isSelected = selectedPresetId === preset.id;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => handleSelectPreset(preset)}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded text-left text-xs font-mono-hud transition-all border ${
-                      isSelected
-                        ? 'bg-[#1a2027] border-[#f59e0b] text-[#ffc174] shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                        : 'bg-[#0e141b] border-[#1e2630] text-[#dde3ed] hover:border-[#2a3441]'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold">{preset.presetName}</div>
-                      <div className="text-[11px] text-[#94a3b8]">
-                        {preset.startDate} ➔ {preset.endDate}
-                      </div>
-                    </div>
-                    {isSelected && <Check className="w-4 h-4 text-[#f59e0b] shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Date Range Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-mono-hud text-[#94a3b8] uppercase tracking-wider block">
+              <label htmlFor="calibration-startDate" className="text-xs font-mono-hud text-muted uppercase tracking-wider block">
                 START DATE (INDUCTION)
               </label>
               <input
+                id="calibration-startDate"
                 type="date"
                 value={formData.startDate}
-                onChange={(e) => {
-                  setFormData({ ...formData, startDate: e.target.value });
-                  setSelectedPresetId('custom');
-                }}
-                className="w-full bg-[#0e141b] border border-[#1e2630] rounded px-3 py-2 text-xs font-mono-hud text-white focus:outline-none focus:border-[#f59e0b]"
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                className="w-full bg-inset border border-line rounded px-3 py-2 text-xs font-mono-hud text-white focus:outline-none focus:border-accent"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-mono-hud text-[#94a3b8] uppercase tracking-wider block">
+              <label htmlFor="calibration-endDate" className="text-xs font-mono-hud text-muted uppercase tracking-wider block">
                 END DATE (REDEMPTION)
               </label>
               <input
+                id="calibration-endDate"
                 type="date"
                 value={formData.endDate}
-                onChange={(e) => {
-                  setFormData({ ...formData, endDate: e.target.value });
-                  setSelectedPresetId('custom');
-                }}
-                className="w-full bg-[#0e141b] border border-[#1e2630] rounded px-3 py-2 text-xs font-mono-hud text-white focus:outline-none focus:border-[#f59e0b]"
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                className="w-full bg-inset border border-line rounded px-3 py-2 text-xs font-mono-hud text-white focus:outline-none focus:border-accent"
                 required
               />
             </div>
           </div>
 
-          {/* Terminal Leave Slider */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono-hud">
-              <label className="text-[#94a3b8] uppercase tracking-wider">
-                TERMINAL LEAVE ACCRUAL
-              </label>
-              <span className="text-[#ffc174] font-bold">
-                {formData.terminalLeaveDays} DAYS
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="45"
-              step="1"
-              value={formData.terminalLeaveDays}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  terminalLeaveDays: parseInt(e.target.value, 10) || 0,
-                })
-              }
-              className="w-full accent-[#f59e0b] bg-[#0e141b] h-1.5 rounded cursor-pointer"
-            />
-            <p className="text-[11px] text-[#94a3b8]">
-              Terminal leave subtracts official duty days prior to your discharge date, allowing earlier departure.
-            </p>
-          </div>
-
-          {/* Callsign / Unit */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono-hud text-[#94a3b8] uppercase tracking-wider block">
-              SERVICE CALLSIGN / UNIT
-            </label>
-            <input
-              type="text"
-              value={formData.callsign}
-              onChange={(e) => setFormData({ ...formData, callsign: e.target.value })}
-              placeholder="e.g. SPECIAL RECRUIT // AIR DEFENSE"
-              className="w-full bg-[#0e141b] border border-[#1e2630] rounded px-3 py-2 text-xs font-mono-hud text-white focus:outline-none focus:border-[#f59e0b]"
-            />
-          </div>
-
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-[#1e2630] flex items-center justify-between">
+          <div className="pt-4 border-t border-line flex items-center justify-between">
             <button
               type="button"
               onClick={handleReset}
-              className="flex items-center gap-1.5 text-xs font-mono-hud text-[#94a3b8] hover:text-white transition-colors"
+              className="flex items-center gap-1.5 text-xs font-mono-hud text-muted hover:text-white transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset Defaults</span>
@@ -202,13 +154,13 @@ export const CalibrationModal: React.FC<CalibrationModalProps> = ({
                   tacticalAudio.playHover();
                   onClose();
                 }}
-                className="px-4 py-2 text-xs font-mono-hud text-[#94a3b8] hover:text-white transition-colors"
+                className="px-4 py-2 text-xs font-mono-hud text-muted hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-mono-hud font-bold text-[#0b0f12] bg-[#f59e0b] hover:bg-[#ffb95f] rounded transition-all shadow-[0_0_12px_rgba(245,158,11,0.3)] uppercase"
+                className="px-5 py-2 text-xs font-mono-hud font-bold text-base bg-accent hover:bg-accent-hover rounded transition-colors uppercase"
               >
                 Apply Calibration
               </button>

@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TelemetryHero } from './components/TelemetryHero';
 import { ServiceHeatmap } from './components/ServiceHeatmap';
 import { CalibrationModal } from './components/CalibrationModal';
-import { DayDetailModal } from './components/DayDetailModal';
-import { ExportSummaryModal } from './components/ExportSummaryModal';
-import { ServiceConfig, DayInfo } from './types/telemetry';
+import { ServiceConfig } from './types/telemetry';
 import {
   DEFAULT_CONFIGS,
   calculateDaysArray,
   calculateTelemetryStats,
+  formatDateReadable,
+  parseDate,
 } from './utils/telemetryCalculator';
 import { tacticalAudio } from './utils/audio';
-import { Volume2, VolumeX, Sliders, Download } from 'lucide-react';
+import { Sliders } from 'lucide-react';
 
 export default function App() {
   // Config default set to 1 April 2026 -> 1 June 2027
@@ -28,12 +28,9 @@ export default function App() {
   });
 
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  const [isMuted, setIsMuted] = useState(tacticalAudio.getMuted());
 
-  // Modals state
+  // Modal state
   const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<DayInfo | null>(null);
 
   // High precision ticker (updates every second)
   useEffect(() => {
@@ -49,11 +46,6 @@ export default function App() {
     localStorage.setItem('tactical_telemetry_config_v3', JSON.stringify(newConfig));
   };
 
-  const handleToggleSound = () => {
-    const muted = tacticalAudio.toggleMute();
-    setIsMuted(muted);
-  };
-
   // Recompute statistics & heatmap matrix dynamically whenever config or time changes
   const telemetryStats = useMemo(() => {
     return calculateTelemetryStats(config, currentTime);
@@ -63,80 +55,68 @@ export default function App() {
     return calculateDaysArray(config, currentTime);
   }, [config, currentTime]);
 
+  const formattedStartDate = useMemo(() => {
+    try {
+      return formatDateReadable(parseDate(config.startDate)).toUpperCase();
+    } catch {
+      return config.startDate;
+    }
+  }, [config.startDate]);
+
+  const formattedEndDate = useMemo(() => {
+    try {
+      return formatDateReadable(parseDate(config.endDate)).toUpperCase();
+    } catch {
+      return config.endDate;
+    }
+  }, [config.endDate]);
+
   return (
-    <div className="min-h-screen bg-[#0b0f12] text-[#dde3ed] flex flex-col font-sans selection:bg-[#f59e0b]/30 selection:text-[#ffc174] bg-tactical-grid relative">
-      {/* Discreet corner utility buttons (No navbar) */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
-        <button
-          onClick={handleToggleSound}
-          title={isMuted ? 'Enable Sound' : 'Mute Sound'}
-          className="p-2 rounded bg-[#12181f]/90 border border-[#1e2630] text-[#94a3b8] hover:text-white backdrop-blur transition-colors"
-          aria-label="Toggle Sound"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4 text-[#94a3b8]" /> : <Volume2 className="w-4 h-4 text-[#ffb95f]" />}
-        </button>
-
-        <button
-          onClick={() => {
-            tacticalAudio.playConfirm();
-            setIsExportOpen(true);
-          }}
-          title="Export Dossier"
-          className="p-2 rounded bg-[#12181f]/90 border border-[#1e2630] text-[#94a3b8] hover:text-white backdrop-blur transition-colors hidden sm:block"
-          aria-label="Export Dossier"
-        >
-          <Download className="w-4 h-4 text-[#4edea3]" />
-        </button>
-
-        <button
-          onClick={() => {
-            tacticalAudio.playConfirm();
-            setIsCalibrationOpen(true);
-          }}
-          title="Calibrate Service Dates"
-          className="px-3 py-1.5 text-xs font-mono-hud font-semibold text-[#0b0f12] bg-[#f59e0b] hover:bg-[#ffb95f] rounded backdrop-blur transition-all flex items-center gap-1.5 uppercase shadow-[0_0_12px_rgba(245,158,11,0.3)]"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Calibrate</span>
-        </button>
-      </div>
-
+    <div className="min-h-screen bg-base text-fg flex flex-col font-sans selection:bg-accent/30 selection:text-accent-light bg-tactical-grid relative">
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 space-y-8">
-        {/* Top Center Title (No navbar) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-10 space-y-6 sm:space-y-8">
+        {/* Top Center Title & Controls */}
         <div className="text-center pt-2 pb-1">
-          <h1 className="inline-flex items-center justify-center gap-3 text-3xl sm:text-4xl md:text-5xl font-cinzel font-black tracking-wider select-none">
-            <span className="text-white drop-shadow-[0_2px_12px_rgba(255,255,255,0.15)]">
+          <h1 className="inline-flex items-center justify-center gap-3 text-3xl sm:text-4xl md:text-5xl font-display font-bold tracking-[0.12em] select-none">
+            <span className="text-white">
               ARMY
             </span>
-            <span className="bg-gradient-to-r from-[#ffddb8] via-[#ffb95f] to-[#f59e0b] bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(245,158,11,0.4)]">
+            <span className="bg-gradient-to-r from-accent-pale via-accent-hover to-accent bg-clip-text text-transparent">
               REDEMPTION
             </span>
           </h1>
-          <div className="mt-2 text-[11px] font-mono-hud text-[#94a3b8] tracking-[0.2em] uppercase">
-            <span>SERVICE: 1 APRIL 2026</span>
-            <span className="text-[#343a41] mx-2">➔</span>
-            <span className="text-[#ffc174]">TARGET: 1 JUNE 2027</span>
+
+          {/* Dynamic Service Dates */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[11px] font-mono-hud text-muted tracking-[0.2em] uppercase">
+            <span>SERVICE: {formattedStartDate}</span>
+            <span className="text-line-faint">➔</span>
+            <span className="text-accent-light">TARGET: {formattedEndDate}</span>
           </div>
         </div>
 
-        {/* Section 1: Hero Telemetry Card (Circular Gauge + Countdown Readout) */}
-        <section id="dashboard">
-          <TelemetryHero
-            stats={telemetryStats}
-            config={config}
-            currentTime={currentTime}
-          />
-        </section>
+        {/* Unified Dashboard Card: Hero Telemetry + Service Heatmap */}
+        <section id="dashboard" className="bg-surface border border-line relative rounded-lg p-6 lg:p-8">
+          <button
+            onClick={() => {
+              tacticalAudio.playConfirm();
+              setIsCalibrationOpen(true);
+            }}
+            title="Calibrate Service Dates"
+            className="absolute top-3 right-3 px-2.5 py-1 text-[11px] font-mono-hud font-semibold text-muted hover:text-white border border-line hover:border-accent rounded transition-colors inline-flex items-center gap-1.5 uppercase cursor-pointer"
+          >
+            <Sliders className="w-3 h-3" />
+            <span>Calibrate</span>
+          </button>
 
-        {/* Section 2: Service Integrity Heatmap (Without bottom timeline line) */}
-        <section id="heatmap">
-          <ServiceHeatmap
-            days={daysArray}
-            stats={telemetryStats}
-            config={config}
-            onSelectDay={(day) => setSelectedDay(day)}
-          />
+          <TelemetryHero stats={telemetryStats} />
+
+          {/* Heatmap integrated below hero */}
+          <div className="mt-8 pt-6 border-t border-line">
+            <ServiceHeatmap
+              days={daysArray}
+              stats={telemetryStats}
+            />
+          </div>
         </section>
       </main>
 
@@ -146,22 +126,6 @@ export default function App() {
         onClose={() => setIsCalibrationOpen(false)}
         config={config}
         onSave={handleSaveConfig}
-      />
-
-      {/* Individual Day Inspection Modal */}
-      <DayDetailModal
-        day={selectedDay}
-        onClose={() => setSelectedDay(null)}
-        totalDays={telemetryStats.totalDays}
-      />
-
-      {/* Export Summary Modal */}
-      <ExportSummaryModal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        stats={telemetryStats}
-        config={config}
-        currentTime={currentTime}
       />
     </div>
   );

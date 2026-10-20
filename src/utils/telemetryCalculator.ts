@@ -46,19 +46,18 @@ export function formatDateReadable(date: Date): string {
   });
 }
 
-export function formatDayWeek(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+export function formatLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function calculateDaysArray(config: ServiceConfig, now: Date): DayInfo[] {
   const start = parseDate(config.startDate);
   const end = parseDate(config.endDate);
 
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const todayString = formatLocalDateString(now);
 
   const days: DayInfo[] = [];
   const current = new Date(start);
@@ -69,12 +68,12 @@ export function calculateDaysArray(config: ServiceConfig, now: Date): DayInfo[] 
   const terminalLeaveStartIndex = Math.max(1, totalDaysEstimate - config.terminalLeaveDays);
 
   while (current <= end) {
-    const curTime = current.getTime();
+    const dateString = formatLocalDateString(current);
     let status: 'served' | 'current' | 'remaining' = 'remaining';
 
-    if (curTime < today.getTime()) {
+    if (dateString < todayString) {
       status = 'served';
-    } else if (curTime === today.getTime()) {
+    } else if (dateString === todayString) {
       status = 'current';
     } else {
       status = 'remaining';
@@ -93,13 +92,13 @@ export function calculateDaysArray(config: ServiceConfig, now: Date): DayInfo[] 
       milestoneTitle = '75% Home Stretch';
     } else if (index === terminalLeaveStartIndex && config.terminalLeaveDays > 0) {
       milestoneTitle = 'Terminal Leave Starts';
-    } else if (curTime === end.getTime()) {
+    } else if (dateString === config.endDate) {
       milestoneTitle = 'Redemption / Discharge Day';
     }
 
     days.push({
       date: new Date(current),
-      dateString: current.toISOString().slice(0, 10),
+      dateString: formatLocalDateString(current),
       dayIndex: index,
       status,
       isMilestone: Boolean(milestoneTitle),
@@ -139,9 +138,9 @@ export function calculateTelemetryStats(config: ServiceConfig, now: Date): Telem
     daysServed = totalDays;
     currentDayIndex = totalDays;
   } else {
-    // Number of full days served
+    // Number of full calendar days elapsed before today
     const servedDiffMs = Math.max(0, today.getTime() - start.getTime());
-    daysServed = Math.floor(servedDiffMs / (1000 * 60 * 60 * 24));
+    daysServed = Math.round(servedDiffMs / (1000 * 60 * 60 * 24));
     currentDayIndex = daysServed + 1;
   }
 

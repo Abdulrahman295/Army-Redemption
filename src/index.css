@@ -1,11 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --color-muted: #94a3b8;
+  --color-line: #1e2630;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #ffb95f;
+  --color-accent-light: #ffc174;
+  --color-accent-pale: #ffddb8;
+  --color-ok: #4edea3;
+  --color-base: #0b0f12;
+  --color-inset: #0e141b;
+  --color-fg: #dde3ed;
+  --color-info: #54ddfc;
+  --color-line-soft: #242a32;
+  --color-surface: #12181f;
+  --color-line-faint: #343a41;
+  --color-sand-dim: #a08e7a;
+  --color-line-strong: #2a3441;
+  --color-raised: #1a2027;
+  --color-sand: #d8c3ad;
+  --color-track: #161c23;
+}
+
 @layer base {
   :root {
-    --font-cinzel: 'Cinzel', serif;
-    --font-space: 'Space Grotesk', sans-serif;
+    --font-display: 'Chakra Petch', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --font-sans: 'Geist', sans-serif;
+    --font-sans: 'Chakra Petch', sans-serif;
   }
 
   body {
@@ -15,12 +36,8 @@
   }
 }
 
-.font-cinzel {
-  font-family: 'Cinzel', serif;
-}
-
-.font-space {
-  font-family: 'Space Grotesk', sans-serif;
+.font-display {
+  font-family: var(--font-display);
 }
 
 .font-mono-hud {
